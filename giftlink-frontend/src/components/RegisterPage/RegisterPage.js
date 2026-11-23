@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { urlConfig } from '../../config';
+import { useAppContext } from '../../context/AuthContext';
 import './RegisterPage.css';
 
 function RegisterPage() {
@@ -6,9 +9,49 @@ function RegisterPage() {
 	const [lastName, setLastName] = useState('');
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
+	const [showerr, setShowerr] = useState('');
 
-	const handleRegister = async () => {
-		console.log("Register invoked");
+	const navigate = useNavigate();
+	const { setIsLoggedIn } = useAppContext();
+
+	const handleRegister = async (e) => {
+		if (e && e.preventDefault) {
+			e.preventDefault();
+		}
+		setShowerr('');
+
+		try {
+			const response = await fetch(`${urlConfig.backendUrl}/api/auth/register`, {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+				},
+				body: JSON.stringify({
+					firstName,
+					lastName,
+					email,
+					password,
+				}),
+			});
+
+			const json = await response.json();
+
+			if (json.authtoken) {
+				sessionStorage.setItem('auth-token', json.authtoken);
+				sessionStorage.setItem('name', firstName);
+				sessionStorage.setItem('email', json.email);
+				setIsLoggedIn(true);
+				navigate('/app');
+			} else if (json.error) {
+				setShowerr(json.error);
+			} else if (json.errors && json.errors.length > 0) {
+				setShowerr(json.errors[0].msg);
+			} else {
+				setShowerr('Registration failed. Please try again.');
+			}
+		} catch (error) {
+			setShowerr(error.message || 'Unable to connect to the server.');
+		}
 	};
 
 	return (
@@ -55,6 +98,11 @@ function RegisterPage() {
 								value={email}
 								onChange={(e) => setEmail(e.target.value)}
 							/>
+							{showerr && (
+								<div className="text-danger mt-1" style={{ color: 'red' }}>
+									{showerr}
+								</div>
+							)}
 						</div>
 
 						<div className="mb-4">
